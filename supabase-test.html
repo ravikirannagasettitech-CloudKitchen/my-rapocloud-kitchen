@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapo Cloud Kitchen - Supabase Test</title>
+</head>
+<body>
+  <h2>Rapo Cloud Kitchen Database Connection</h2>
+  <pre id="result">Connecting...</pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
+  <script>
+    async function testConnection() {
+      const { data, error } = await db
+        .from("products")
+        .select("id, name, price");
+
+      document.getElementById("result").textContent =
+        error
+          ? "Error: " + error.message
+          : JSON.stringify(data, null, 2);
+    }
+
+    testConnection();
+  </script>
+</body>
+</html>
