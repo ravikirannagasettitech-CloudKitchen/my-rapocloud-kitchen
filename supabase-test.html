@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rapo Cloud Kitchen - Supabase Test</title>
 </head>
 <body>
@@ -11,53 +10,51 @@
   <h2>Rapo Cloud Kitchen</h2>
   <h3>Supabase Connection Test</h3>
 
-  <pre id="result">Starting test...</pre>
+  <pre id="result">Starting connection test...</pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
+    const SUPABASE_URL =
+      "https://gsyjnyndoakzypqjiptt.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable_MmwPSVKgk6F9qwqjWMzk_w_BG1G7IrG";
+
     const resultBox = document.getElementById("result");
 
-    function show(message) {
-      resultBox.textContent = message;
-    }
-
-    window.addEventListener("error", function(event) {
-      show("JavaScript error: " + event.message);
-    });
-  </script>
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-    onerror="show('ERROR: Supabase library could not load')">
-  </script>
-
-  <script>
     async function testConnection() {
       try {
         if (!window.supabase) {
-          throw new Error(
-            "Supabase library not loaded. Check internet connection."
-          );
+          throw new Error("Supabase library failed to load.");
         }
-
-        const SUPABASE_URL =
-          "https://gsyjnyndoakzypqjiptt.supabase.co";
-
-        const SUPABASE_KEY =
-          "sb_publishable_MmwPSVKgk6F9qwqjWMzk_w_BG1G7IrG";
 
         const client = window.supabase.createClient(
           SUPABASE_URL,
           SUPABASE_KEY
         );
 
-        show("Connecting to Supabase...");
+        resultBox.textContent = "Connecting to Supabase...";
+
+        const today = new Intl.DateTimeFormat(
+          "en-CA",
+          {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          }
+        ).format(new Date());
 
         const response = await Promise.race([
           client
             .from("daily_stock")
-            .select("product_id, stock_date, total_quantity, reserved_quantity")
-            .eq("stock_date", "2026-11-23")
-            .order("name"),
+            .select(
+              "product_id, stock_date, total_quantity, reserved_quantity"
+            )
+            .eq("stock_date", today)
+            .order("product_id"),
+
           new Promise((_, reject) =>
             setTimeout(
               () => reject(new Error("Connection timed out")),
@@ -70,15 +67,24 @@
           throw response.error;
         }
 
-        show(
+        const stock = response.data.map(item => ({
+          product: item.product_id,
+          date: item.stock_date,
+          total: item.total_quantity,
+          reserved: item.reserved_quantity,
+          available:
+            item.total_quantity - item.reserved_quantity
+        }));
+
+        resultBox.textContent =
           "SUCCESS! Supabase connected.\n\n" +
-          "Products found: " + response.data.length +
-          "\n\n" +
-          JSON.stringify(response.data, null, 2)
-        );
+          "Stock date: " + today + "\n" +
+          "Stock records found: " + stock.length + "\n\n" +
+          JSON.stringify(stock, null, 2);
 
       } catch (error) {
-        show("ERROR: " + error.message);
+        resultBox.textContent =
+          "ERROR: " + error.message;
       }
     }
 
