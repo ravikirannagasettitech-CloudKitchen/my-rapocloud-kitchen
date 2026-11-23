@@ -54,8 +54,9 @@
 
         const response = await Promise.race([
           client
-            .from("products")
-            .select("id, name, price")
+            .from("daily_stock")
+            .select("product_id, stock_date, total_quantity, reserved_quantity")
+            .eq("stock_date", "2026-11-23")
             .order("name"),
           new Promise((_, reject) =>
             setTimeout(
