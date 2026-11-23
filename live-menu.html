@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+<title>Rapo Cloud Kitchen - Live Menu</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #fff8f0;
+    color: #292018;
+  }
+
+  header {
+    background: #7a2517;
+    color: white;
+    padding: 25px 16px;
+    text-align: center;
+  }
+
+  header h1 { margin: 0 0 10px; }
+
+  main {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 16px;
+  }
+
+  .menu {
+    display: grid;
+    grid-template-columns:
+      repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: white;
+    padding: 22px;
+    border: 1px solid #eee0d2;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px #0000000a;
+  }
+
+  .card h2 { font-size: 21px; }
+
+  .price {
+    font-size: 23px;
+    font-weight: bold;
+    color: #7a2517;
+  }
+
+  .available {
+    color: #137448;
+    font-weight: bold;
+  }
+
+  .soldout {
+    color: #b42318;
+    font-weight: bold;
+  }
+
+  .muted { color: #675e56; }
+
+  button {
+    background: #7a2517;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  a { color: #7a2517; }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Rapo Cloud Kitchen</h1>
+  <p>Fresh South Indian Food - Hyderabad</p>
+</header>
+
+<main>
+  <h2>Today's Menu</h2>
+  <p id="status">Loading today's availability...</p>
+
+  <div id="menu" class="menu"></div>
+
+  <p>
+    <button onclick="loadMenu()">
+      Refresh Availability
+    </button>
+  </p>
+
+  <p>
+    <a href="index.html">Back to Home</a>
+  </p>
+
+  <p class="muted">
+    Live availability display only.
+    Real checkout and payments are not enabled.
+  </p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const URL =
+  "https://gsyjnyndoakzypqjiptt.supabase.co";
+
+const KEY =
+  "sb_publishable_MmwPSVKgk6F9qwqjWMzk_w_BG1G7IrG";
+
+const client = window.supabase.createClient(URL, KEY);
+
+function indiaDate() {
+  const parts = new Intl.DateTimeFormat(
+    "en-GB", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }
+  ).formatToParts(new Date());
+
+  const get = type =>
+    parts.find(p => p.type === type).value;
+
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+async function loadMenu() {
+  const status = document.getElementById("status");
+  const menu = document.getElementById("menu");
+
+  status.textContent = "Loading menu...";
+  menu.replaceChildren();
+
+  try {
+    const [productsResult, stockResult] =
+      await Promise.all([
+        client.from("products")
+          .select("id,name,price,unit,description")
+          .eq("active", true)
+          .order("name"),
+
+        client.from("daily_stock")
+          .select(
+            "product_id,total_quantity,reserved_quantity"
+          )
+          .eq("stock_date", indiaDate())
+      ]);
+
+    if (productsResult.error)
+      throw productsResult.error;
+
+    if (stockResult.error)
+      throw stockResult.error;
+
+    const stockMap = new Map(
+      stockResult.data.map(s => [s.product_id, s])
+    );
+
+    for (const p of productsResult.data) {
+      const stock = stockMap.get(p.id);
+
+      const available = stock
+        ? Math.max(
+            0,
+            stock.total_quantity -
+            stock.reserved_quantity
+          )
+        : 0;
+
+      const card = document.createElement("article");
+      card.className = "card";
+
+      const title = document.createElement("h2");
+      title.textContent = p.name;
+
+      const description = document.createElement("p");
+      description.textContent = p.description || "";
+
+      const price = document.createElement("p");
+      price.className = "price";
+      price.textContent = "₹" + p.price;
+
+      const unit = document.createElement("p");
+      unit.className = "muted";
+      unit.textContent = p.unit;
+
+      const stockText = document.createElement("p");
+      stockText.className =
+        available > 0 ? "available" : "soldout";
+
+      stockText.textContent = available > 0
+        ? `${available} available today`
+        : "Sold out / Not available today";
+
+      card.append(
+        title, description, price, unit, stockText
+      );
+
+      menu.appendChild(card);
+    }
+
+    status.textContent =
+      `Live stock for ${indiaDate()} - ` +
+      `${productsResult.data.length} products`;
+
+  } catch (error) {
+    status.textContent =
+      "Error loading menu: " + error.message;
+  }
+}
+
+loadMenu();
+</script>
+</body>
+</html>
